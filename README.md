@@ -1,107 +1,123 @@
-Self-Study Agentic RAG Project
+<div align="center">
 
-A small experimental project I built while learning LangChain, LangGraph, RAG, Chroma Cloud, Gemini, and LangSmith.
+Agentic RAG — Self-Study Project
 
-The goal was not to build a production-ready assistant, but to understand how the individual pieces of an agentic RAG workflow fit together and how state moves through a LangGraph.
+An experimental Agentic RAG workflow built with LangGraph, Chroma Cloud, Gemini, Tavily, and LangSmith.
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/LangGraph-Agent_Workflow-purple" />
+  <img src="https://img.shields.io/badge/Chroma-Cloud-orange" />
+  <img src="https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white" />
+  <img src="https://img.shields.io/badge/LangSmith-Tracing-black" />
+  <img src="https://img.shields.io/badge/Tavily-Web_Search-green" />
+</p>
+
+Built as a hands-on experiment to understand how retrieval, generation, reflection, conditional routing, and web research fit together in an Agentic RAG system.
+
+</div>
 
 What I was experimenting with
 
-This project explores a workflow where an AI system:
+The goal of this project was to move beyond a basic retrieve → generate RAG pipeline and experiment with a workflow that can evaluate its own answer and decide whether additional research is required.
 
-Retrieves relevant context from a Chroma Cloud vector database
+The agent:
 
-Uses Google Gemini to generate an initial answer
+Retrieves relevant documents from Chroma Cloud
 
-Uses a second LLM role to evaluate / reflect on that answer
+Generates an initial answer using Google Gemini
 
-Decides whether the retrieved knowledge is enough
+Uses an evaluator / reflection step to judge whether the answer is sufficiently supported
 
-If needed, performs a web search
+Routes the workflow based on that evaluation
 
-Regenerates the answer using both the retrieved context and the new web research
+Accepts the answer immediately when the retrieved knowledge is sufficient
 
-Workflow
+Searches the web with Tavily when more information is needed
 
-flowchart TD
-    A[User Question] --> B[Retrieve Documents]
-    B --> C[Generate Answer - LLM #1]
-    C --> D[Evaluate / Reflect - LLM #2]
+Regenerates the final answer using the retrieved context + web research
 
-    D -->|Accept| E[Final Answer]
-    D -->|Needs Research| F[Web Search]
+Agent workflow
 
-    F --> G[Regenerate Answer]
-    G --> E
+<p align="center">
+  <img src="./graph.png" alt="Agentic RAG LangGraph workflow" width="430"/>
+</p>
 
-Main concepts explored
+The key branching decision is produced by the evaluator:
 
-RAG ingestion pipeline
+needs_research = False  →  Accept answer → END
 
-Load web documents
+needs_research = True   →  Web search → Regenerate answer → END
 
-Combine parsed content
+Architecture
 
-Split content into chunks
+Component
 
-Generate embeddings
-
-Store vectors in Chroma Cloud
-
-Semantic retrieval
-
-Query Chroma using the user question
-
-Return the most relevant document chunks
-
-LangGraph state
-
-Pass the question, retrieved documents, answer, evaluation result, research query, and web context between nodes
-
-Structured LLM evaluation
-
-The evaluator returns structured fields such as:
-
-evaluation_reason
-
-needs_research
-
-research_query
-
-Conditional routing
-
-If the answer is sufficient → finish
-
-If more information is required → search the web and regenerate
-
-Observability
-
-Use LangSmith to inspect prompts, model calls, outputs, and graph behavior
-
-Tech stack
-
-Python
-
-LangChain
-
-LangGraph
-
-LangSmith
-
-Google Gemini
+Responsibility
 
 Chroma Cloud
 
-Hugging Face embeddings
+Stores embedded knowledge-base chunks
+
+Hugging Face Embeddings
+
+Creates vector embeddings for ingestion and retrieval
+
+Retriever Node
+
+Fetches the most relevant context for the user question
+
+Gemini Generator
+
+Generates the first answer from retrieved evidence
+
+Gemini Evaluator
+
+Reflects on the answer using structured output
+
+Conditional Routing
+
+Chooses accept or needs_research
 
 Tavily Search
 
-Unstructured
+Retrieves additional web information when needed
 
-uv
+Regeneration Node
+
+Produces a new answer from retrieved + web context
+
+LangGraph
+
+Orchestrates state and workflow transitions
+
+LangSmith
+
+Traces prompts, model calls, state transitions, and outputs
+
+State used by the graph
+
+question: str
+documents: list[Document]
+answer: str
+evaluation_reason: str
+needs_research: bool
+research_query: str
+web_context: str
+
+The evaluator returns structured information such as:
+
+{
+    "evaluation_reason": "...",
+    "needs_research": True,
+    "research_query": "..."
+}
+
+LangGraph then uses needs_research to choose the next edge.
 
 Project structure
 
-selfstudyproject/
+src/selfstudyproject/
 │
 ├── nodes/
 │   ├── retrieve.py
@@ -126,56 +142,77 @@ selfstudyproject/
 
 Quick start
 
-To run the project locally:
+1. Install dependencies
 
-Install the dependencies
+This project uses uv.
 
 uv sync
 
-Add your API keys and Chroma Cloud configuration
+2. Add your API keys and Chroma Cloud configuration
 
 Create a .env file in the project root:
 
-CHROMA_API_KEY=...
-CHROMA_TENANT=...
-CHROMA_DATABASE=...
-CHROMA_COLLECTION=...
+CHROMA_API_KEY=your_chroma_api_key
+CHROMA_TENANT=your_chroma_tenant
+CHROMA_DATABASE=your_chroma_database
+CHROMA_COLLECTION=your_collection_name
 
-GOOGLE_API_KEY=...
-TAVILY_API_KEY=...
+GOOGLE_API_KEY=your_google_api_key
+TAVILY_API_KEY=your_tavily_api_key
 
-Run the agent
+3. Run the agent
+
+If your Chroma collection is already populated:
 
 uv run python -m selfstudyproject.scripts.run_agent
 
-Enter your question when prompted.
+You will be prompted to enter a question:
 
-Note: The repository expects the Chroma collection to already contain the documents you want to retrieve from. If you want to ingest or refresh your own sources, run the ingestion script first:
+Enter a question:
+
+The graph then decides whether the answer can be returned from the retrieved knowledge or whether additional web research is required.
+
+<details>
+<summary><strong>Need to ingest / refresh the knowledge base?</strong></summary>
+
+Run:
 
 uv run python -m selfstudyproject.scripts.ingest
 
-Why I built it
+The ingestion workflow loads the configured sources, chunks the content, embeds it, and stores it in Chroma Cloud.
 
-I wanted to move beyond basic RAG and understand how an agent can make a decision about the quality of its own answer.
+</details>
 
-The most interesting part for me was separating the workflow into clear responsibilities:
+What I learned
 
-retrieval finds evidence
+This project helped me experiment with several concepts that are easy to understand individually but more interesting when combined:
 
-generation creates an answer
+Separating ingestion from runtime retrieval
 
-evaluation decides whether that answer is good enough
+Using a vector database for semantic retrieval
 
-routing determines the next step
+Passing shared state through LangGraph
 
-web search adds missing information
+Using separate LLM roles for generation and evaluation
 
-regeneration creates the final answer
+Returning structured evaluation results with Pydantic
 
-This project is part of my ongoing hands-on learning in Agentic AI and AI Engineering.
+Using conditional edges instead of treating every decision as a node
 
-Status
+Falling back to web research when the knowledge base is insufficient
 
-Experimental / learning project.
+Regenerating an answer from multiple evidence sources
 
-I will continue improving it as I explore better retrieval strategies, evaluation, tracing, testing, and more advanced LangGraph patterns.
+Inspecting the entire workflow through LangSmith
+
+Current status
+
+Learning / experimental project — not intended as a production-ready RAG system.
+
+Possible next experiments include retrieval grading, source citations, reranking, better evaluation criteria, graph persistence, automated tests, and more advanced LangGraph patterns.
+
+<div align="center">
+
+Built while learning Agentic AI, RAG, LangChain, and LangGraph.
+
+</div>
