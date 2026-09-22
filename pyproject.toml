@@ -1,0 +1,31 @@
+[project]
+name = "selfstudyproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Mahmoud AbdulHady", email = "mahmoud.abdelfa@tpay.me" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "chromadb>=1.5.9",
+    "langchain-chroma>=1.1.0",
+    "langchain-community>=0.4.2",
+    "langchain-google-genai>=4.4.0",
+    "langchain-huggingface>=1.2.2",
+    "langchain-tavily>=0.2.18",
+    "langchain-text-splitters>=1.1.2",
+    "langchain-unstructured>=1.0.1",
+    "langgraph>=1.2.12",
+    "python-dotenv>=1.2.3",
+    "sentence-transformers>=6.1.0",
+    "unstructured>=0.27.8",
+]
+
+[project.scripts]
+selfstudyproject = "selfstudyproject:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
